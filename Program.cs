@@ -7,6 +7,8 @@ using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
+using System.Xml;
+
 using System.Globalization;
 
 
@@ -38,74 +40,198 @@ namespace fodt2tex
         static XNamespace style = "urn:oasis:names:tc:opendocument:xmlns:style:1.0";
         static XNamespace table = "urn:oasis:names:tc:opendocument:xmlns:table:1.0";
         static XNamespace text = "urn:oasis:names:tc:opendocument:xmlns:text:1.0";
+        static XNamespace draw = "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0";
 
-        static string GetText(XElement tcel)
+        static Dictionary<string, string> columns = new Dictionary<string, string>();
+        static Dictionary<string, Border> cells = new Dictionary<string, Border>();
+
+        static Dictionary<string, KeyValuePair<string, string>> styles = new Dictionary<string, KeyValuePair<string, string>>();
+        static string[] fontsize;
+        static KeyValuePair<string, string> getFont(XElement t)
         {
-            if (tcel.IsEmpty)
-                return "";
-            string ttcel = "";
-            var tts = tcel.Descendants(text + "span").Select(u => u.Value);
-            foreach (string ts in tts)
+            string start = "";
+            string end = "";
+            if (t.Attribute(fo + "font-size") != null)
             {
-                if (!string.IsNullOrEmpty(ts))
-                    ttcel += " " + ts;
+                int ic = int.Parse(t.Attribute(fo + "font-size").Value.Replace("pt", "").Replace("%", ""));
+                string vtex = "HUGE";
+                if (ic <= 30)
+                    vtex = fontsize[ic];
+
+                start += vtex;
+                end += "}";
             }
-            /*
-            if (string.IsNullOrEmpty(ttcel))
+            else
+            if (t.Attribute(style + "font-size-complex") != null)
             {
-                tts = tcel.Descendants(text + "p").Select(u => u.Value);
-                foreach (string ts in tts)
+                int ic = int.Parse(
+                    t.Attribute(style + "font-size-complex"
+                    ).Value.Replace("pt", "").Replace("%", "\"\""));
+                string vtex = "HUGE";
+                if (ic <= 30)
+                    vtex = fontsize[ic];
+                start += vtex;
+                end += "}";
+            }
+            //bold italic
+            if (t.Attribute(fo+"font-weight")!=null)
+            {
+                if (t.Attribute(fo+"font-weight").Value == "bold")
                 {
-                    if (!string.IsNullOrEmpty(ts))
-                        ttcel += ts;
+                    start += "\\textbf{";
+                    end += "}";
                 }
             }
-            */
-            ttcel = "\\scriptsize " + ttcel.Replace("_", "\\_").Replace("%", "\\%");
-            return ttcel;
+
+            if (t.Attribute(fo+"font-style")!=null)
+            {
+                if (t.Attribute(fo+"font-style").Value == "italic")
+                {
+                    start += "\\textit{";
+                    end += "}";
+                }
+            }
+            return KeyValuePair.Create(start, end);
+
         }
-
-        static void Main(string[] args)
+        static void initStyles(XDocument xmdoc)
         {
-            if (args.Length == 0)
-                return;
-            string FullName = args[0];
-            string pth = Path.GetDirectoryName(FullName);
-            string fname = Path.GetFileNameWithoutExtension(FullName);
-            string fhead = Path.Combine(pth, "head.t");
-            string ftex = Path.Combine(pth, fname + ".tex");
-            string texRes = File.ReadAllText(fhead);
-            string mdoc = File.ReadAllText(FullName);
+            //инициализация справочников
+            //размеры шрифтов
+            fontsize = new string[31];
+            /*
+            for (int i = 1; i <= 6; i++)
+                fontsize[i] = "\\tiny{";
 
+            for (int i = 7; i <= 8; i++)
+                fontsize[i] = "\\scriptsize{";
 
-            XDocument xmdoc = XDocument.Parse(mdoc);
+            for (int i = 9; i <= 10; i++)
+                fontsize[i] = "\\footnotesize{";
 
-            //Отступы страницы
-            var gml = xmdoc.Root.Descendants(style + "page-layout-properties").Select(u =>
-            {
-                if (u.Attribute(fo + "page-height") != null)
+            for (int i = 11; i <= 12; i++)
+                fontsize[i] = "\\small{";
+
+            for (int i = 13; i <= 14; i++)
+                fontsize[i] = "\\normalsize{";
+
+            for (int i = 15; i <= 17; i++)
+                fontsize[i] = "\\large{";
+
+            for (int i = 18; i <= 21; i++)
+                fontsize[i] = "\\Large{";
+
+            for (int i = 22; i <= 25; i++)
+                fontsize[i] = "\\LARGE{";
+
+            for (int i = 26; i <= 30; i++)
+                fontsize[i] = "\\huge{";
+            */
+
+            
+            for (int i = 1; i <= 6; i++)
+                fontsize[i] = "\\tiny{";
+
+            for (int i = 7; i <= 8; i++)
+                fontsize[i] = "\\footnotesize{";
+
+            for (int i = 9; i <= 10; i++)
+                fontsize[i] = "\\small{";
+
+            for (int i = 11; i <= 12; i++)
+                fontsize[i] = "\\normalsize";
+
+            for (int i = 13; i <= 14; i++)
+                fontsize[i] = "\\large{";
+
+            for (int i = 15; i <= 17; i++)
+                fontsize[i] = "\\Large{";
+
+            for (int i = 18; i <= 21; i++)
+                fontsize[i] = "\\LARGE{";
+
+            for (int i = 22; i <= 25; i++)
+                fontsize[i] = "\\LARGE{";
+
+            for (int i = 26; i <= 30; i++)
+                fontsize[i] = "\\huge{";
+            
+            
+            var ttcl = xmdoc.Descendants(style + "style").Where(u => u.Attribute(style + "family").Value == "text").Select(
+                u =>
                 {
-                    string gm = $"\n\\usepackage[paperheight={u.Attribute(fo + "page-height").Value},paperwidth={u.Attribute(fo + "page-width").Value},left={u.Attribute(fo + "margin-left").Value},right={u.Attribute(fo + "margin-right").Value},top={u.Attribute(fo + "margin-top").Value},bottom={u.Attribute(fo + "margin-bottom").Value}]" + "{geometry}";
-                    return gm;
+
+                    string tag = u.Attribute(style + "name").Value;
+                    string start = "";
+                    String end = "";
+
+                    XElement t = u.Element(style + "text-properties");
+                    if (t != null)
+                    {
+                        KeyValuePair<string, string> fn = getFont(t);
+                        start += fn.Key;
+                        end += fn.Value;
+                    }
+
+                    KeyValuePair<string, KeyValuePair<string, string>> r = KeyValuePair.Create(tag, KeyValuePair.Create(start, end));
+                    return r;
                 }
-                else
-                    return "";
-            });
-            string gm = "";
-            foreach (string s in gml)
+            );
+
+            foreach (var e in ttcl)
             {
-                if (!string.IsNullOrEmpty(s))
-                {
-                    gm = s;
-                    break;
-                }
+                styles.Add(e.Key, e.Value);
             }
 
-            texRes += gm;
-            texRes += "\n\\begin{document}";
+            var parcl = xmdoc.Descendants(style + "style").Where(u => u.Attribute(style + "family").Value == "paragraph").Select(
+                u =>
+                {
+
+                    string tag = u.Attribute(style + "name").Value;
+                    string start = "";
+                    String end = "";
+                    XElement p = u.Element(style + "paragraph-properties");
+                    if (p != null)
+                        if (p.Attribute(fo + "text-align") != null)
+                        {
+                            string v = p.Attribute(fo + "text-align").Value;
+                            string vtex = "{";
+                            if (v == "start")
+                                vtex = "\\raggedright{";
+
+                            if (v == "end")
+                                vtex = "\\raggedleft{";
+
+                            if (v == "center")
+                                vtex = "\\centering{";
+
+                            start += vtex;
+                            end += "}";
+                        }
+
+
+                    XElement t = u.Element(style + "text-properties");
+                    if (t != null)
+                        if (t != null)
+                        {
+                            KeyValuePair<string, string> fn = getFont(t);
+                            start += fn.Key;
+                            end += fn.Value;
+                        }
+
+
+
+                    KeyValuePair<string, KeyValuePair<string, string>> r = KeyValuePair.Create(tag, KeyValuePair.Create(start, end));
+                    return r;
+                }
+            );
+
+            foreach (var e in parcl)
+            {
+                styles.Add(e.Key, e.Value);
+            }
 
             //Ширина столбцов
-            Dictionary<string, string> columns = new Dictionary<string, string>();
             var cl = xmdoc.Root.Descendants(style + "style").Where(u => u.Attribute(style + "family").Value == "table-column").Select(
                 u =>
                 {
@@ -119,7 +245,6 @@ namespace fodt2tex
                 columns.Add(e.Key, e.Value);
             }
             //Границы ячеек
-            Dictionary<string, Border> cells = new Dictionary<string, Border>();
             var cel = xmdoc.Root.Descendants(style + "style").Where(u =>
             (u.Attribute(style + "family").Value == "table-cell")
             ).Select(
@@ -151,6 +276,108 @@ namespace fodt2tex
             {
                 cells.Add(e.Key, e.Value);
             }
+            //инициализация справочников
+
+        }
+        static string esctex(string s)
+        {
+            return s.Replace("_", "\\_").Replace("%", "\\%");
+        }
+        static string GetText(XElement tcel)
+        {
+            if (tcel.Name == draw + "frame")
+            {
+                //Это картинка
+                return "";
+            }
+
+            if (tcel.Name == text + "line-break")
+            {
+                //новая строка
+                return "\\par ";
+            }
+
+            string start = "";  //Подгружаем из таблицы стилей
+            string end = "";
+            if (tcel.Attribute(text + "style-name") != null)
+            {
+                string tag = tcel.Attribute(text + "style-name").Value;
+                if (styles.ContainsKey(tag))
+                {
+                    KeyValuePair<string, string> se = styles[tag];
+                    start = se.Key;
+                    end = se.Value;
+                }
+            }
+
+            if (!tcel.HasElements)
+            {
+                if (tcel.Name == text + "p")
+                {
+                    start = "\\par " + start;
+                }
+                return start + esctex(tcel.Value) + end;
+            }
+            else
+            {
+                string tts = start;
+                foreach (XNode el in tcel.Nodes())
+                {
+                    if (el is XElement)
+                        tts += GetText((XElement)el);
+                    else
+                    if (el.NodeType == XmlNodeType.Text)
+                    {
+                        tts += esctex(el.ToString());
+                    }
+
+
+                }
+                tts += end;
+                return tts;
+            }
+        }
+
+        static void Main(string[] args)
+        {
+            if (args.Length == 0)
+                return;
+            string FullName = args[0];
+            string pth = Path.GetDirectoryName(FullName);
+            string fname = Path.GetFileNameWithoutExtension(FullName);
+            string fhead = Path.Combine(pth, "head.t");
+            string ftex = Path.Combine(pth, fname + ".tex");
+            string texRes = File.ReadAllText(fhead);
+            string mdoc = File.ReadAllText(FullName);
+
+
+            XDocument xmdoc = XDocument.Parse(mdoc);
+            initStyles(xmdoc);
+
+            //Отступы страницы
+            var gml = xmdoc.Root.Descendants(style + "page-layout-properties").Select(u =>
+            {
+                if (u.Attribute(fo + "page-height") != null)
+                {
+                    string gm = $"\n\\usepackage[paperheight={u.Attribute(fo + "page-height").Value},paperwidth={u.Attribute(fo + "page-width").Value},left={u.Attribute(fo + "margin-left").Value},right={u.Attribute(fo + "margin-right").Value},top={u.Attribute(fo + "margin-top").Value},bottom={u.Attribute(fo + "margin-bottom").Value}]" + "{geometry}";
+                    return gm;
+                }
+                else
+                    return "";
+            });
+            string gm = "";
+            foreach (string s in gml)
+            {
+                if (!string.IsNullOrEmpty(s))
+                {
+                    gm = s;
+                    break;
+                }
+            }
+
+            texRes += gm;
+            texRes += "\n\\begin{document}";
+
 
             var tables = xmdoc.Root.Descendants(table + "table").Select(u => u);
             XAttribute repe = new XAttribute("number-columns-repeated", "1");
@@ -161,14 +388,20 @@ namespace fodt2tex
                 List<string> licol = new List<string>();
                 List<decimal> wdcol = new List<decimal>();
                 //Список колонок
+                decimal scale = 1.0M;
+                if (tab.Attribute("scale") != null)
+                {
+                    scale = Decimal.Parse(tab.Attribute("scale").Value.Replace(".", ","));
+                }
+
+
                 foreach (XElement tcol in tab.Elements(table + "table-column"))
                 {
                     string tag = tcol.Attribute(table + "style-name").Value;
                     string vtag = columns[tag];
-                    string wtag = "p{" + vtag + "}";
-
                     vtag = vtag.Replace("cm", "").Replace(".", ",");
-                    decimal wd = decimal.Parse(vtag);
+                    decimal wd = decimal.Parse(vtag) / scale;
+                    string wtag = "p{" + wd.ToString().Replace(",", ".") + "}";
                     string sn = (tcol.Attribute(table + "number-columns-repeated") ?? repe).Value;
                     int n = int.Parse(sn);
                     for (int i = 0; i < n; i++)
@@ -183,6 +416,7 @@ namespace fodt2tex
                 decimal[] wds = wdcol.ToArray();
                 for (int i = 1; i < ncol; i++)
                     wds[i] = wds[i] + wds[i - 1];
+
 
                 //список строк
                 string up_line = new string('~', ncol);
@@ -233,16 +467,30 @@ namespace fodt2tex
                             lows = wds[cpos - 1];
                         decimal ups = wds[cpos + nlen - 1];
 
-                        string pw = "p{" + (ups - lows).ToString().Replace(",", ".") + "cm}";
+                        string pw = "{" + (ups - lows).ToString().Replace(",", ".") + "cm}";
+                        string multirow = "";
+                        string endcell = "";
+
+                        if (tcel.Attribute(table + "number-rows-spanned") != null)
+                        {
+                            multirow = "{\\multirow{" + tcel.Attribute(table + "number-rows-spanned").Value
+                            + "}{*}{\\parbox" + pw;
+                            endcell = "}}";
+                        }
+
+
+                        pw = "p" + pw;
                         if (b.left)
                             pw = "|" + pw;
                         if (b.right)
                             pw = pw + "|";
 
-                        texcel += "{" + pw + "}";
+                        texcel += "{" + pw + "}" + multirow;
+
+
                         //Здесь запишем текст
                         string ttcel = GetText(tcel);
-                        texcel += "{" + ttcel + "}";
+                        texcel += "{" + ttcel + "}" + endcell;
 
                         if (string.IsNullOrEmpty(texrow))
                             texrow = texcel;
