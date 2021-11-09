@@ -142,7 +142,9 @@ namespace fodt2tex
 
             foreach (var e in ttcl)
             {
-                styles.Add(e.Key, e.Value);
+                if (!styles.ContainsKey(e.Key))
+                    styles.Add(e.Key, e.Value);
+
             }
 
             var parcl = xmdoc.Descendants(style + "style").Where(u => u.Attribute(style + "family").Value == "paragraph").Select(
@@ -190,7 +192,8 @@ namespace fodt2tex
 
             foreach (var e in parcl)
             {
-                styles.Add(e.Key, e.Value);
+                if (!styles.ContainsKey(e.Key))
+                    styles.Add(e.Key, e.Value);
             }
 
             //Ширина столбцов
@@ -204,7 +207,8 @@ namespace fodt2tex
             );
             foreach (var e in cl)
             {
-                columns.Add(e.Key, e.Value);
+                if (!columns.ContainsKey(e.Key))
+                    columns.Add(e.Key, e.Value);
             }
             //Границы ячеек
             var cel = xmdoc.Root.Descendants(style + "style").Where(u =>
@@ -236,7 +240,8 @@ namespace fodt2tex
             );
             foreach (var e in cel)
             {
-                cells.Add(e.Key, e.Value);
+                if (!cells.ContainsKey(e.Key))
+                    cells.Add(e.Key, e.Value);
             }
             //инициализация справочников
 
@@ -302,12 +307,6 @@ namespace fodt2tex
 
             if (!tcel.HasElements)
             {
-                /*
-                if (tcel.Name == text + "p")
-                {
-                    start = "\\par " + start;
-                }
-                */
                 return start + esctex(tcel.Value) + end;
             }
             else
