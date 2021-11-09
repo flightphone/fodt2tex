@@ -10,6 +10,8 @@ using System.Xml.Linq;
 using System.Xml;
 
 using System.Globalization;
+using System.Drawing;
+using System.Drawing.Imaging;
 
 
 
@@ -42,6 +44,9 @@ namespace fodt2tex
         static XNamespace text = "urn:oasis:names:tc:opendocument:xmlns:text:1.0";
         static XNamespace draw = "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0";
 
+        static XNamespace svg = "urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0";
+        static XNamespace office = "urn:oasis:names:tc:opendocument:xmlns:office:1.0";
+
         static Dictionary<string, string> columns = new Dictionary<string, string>();
         static Dictionary<string, Border> cells = new Dictionary<string, Border>();
 
@@ -53,39 +58,56 @@ namespace fodt2tex
             string end = "";
             if (t.Attribute(fo + "font-size") != null)
             {
-                int ic = int.Parse(t.Attribute(fo + "font-size").Value.Replace("pt", "").Replace("%", ""));
-                string vtex = "HUGE";
-                if (ic <= 30)
-                    vtex = fontsize[ic];
+                string sz = t.Attribute(fo + "font-size").Value;
+                try
+                {
+                    decimal dic = decimal.Parse(t.Attribute(fo + "font-size").Value.Replace("pt", "").Replace(".", ","));
+                    int ic = (int)dic;
+                    string vtex = "HUGE";
+                    if (ic <= 30)
+                        vtex = fontsize[ic];
 
-                start += vtex;
-                end += "}";
+                    start += vtex;
+                    end += "}";
+                }
+                catch
+                {
+                    sz = "";
+                }
+
             }
             else
             if (t.Attribute(style + "font-size-complex") != null)
             {
-                int ic = int.Parse(
-                    t.Attribute(style + "font-size-complex"
-                    ).Value.Replace("pt", "").Replace("%", "\"\""));
-                string vtex = "HUGE";
-                if (ic <= 30)
-                    vtex = fontsize[ic];
-                start += vtex;
-                end += "}";
+                string sz = t.Attribute(style + "font-size-complex").Value;
+                try
+                {
+                    decimal dic = decimal.Parse(t.Attribute(style + "font-size-complex").Value.Replace("pt", "").Replace(".", ","));
+                    int ic = (int)dic;
+                    string vtex = "HUGE";
+                    if (ic <= 30)
+                        vtex = fontsize[ic];
+                    start += vtex;
+                    end += "}";
+                }
+                catch
+                {
+                    sz = "";
+                }
             }
             //bold italic
-            if (t.Attribute(fo+"font-weight")!=null)
+            if (t.Attribute(fo + "font-weight") != null)
             {
-                if (t.Attribute(fo+"font-weight").Value == "bold")
+                if (t.Attribute(fo + "font-weight").Value == "bold")
                 {
                     start += "\\textbf{";
                     end += "}";
                 }
             }
 
-            if (t.Attribute(fo+"font-style")!=null)
+            if (t.Attribute(fo + "font-style") != null)
             {
-                if (t.Attribute(fo+"font-style").Value == "italic")
+                if (t.Attribute(fo + "font-style").Value == "italic")
                 {
                     start += "\\textit{";
                     end += "}";
@@ -97,66 +119,6 @@ namespace fodt2tex
         static void initStyles(XDocument xmdoc)
         {
             //инициализация справочников
-            //размеры шрифтов
-            fontsize = new string[31];
-            /*
-            for (int i = 1; i <= 6; i++)
-                fontsize[i] = "\\tiny{";
-
-            for (int i = 7; i <= 8; i++)
-                fontsize[i] = "\\scriptsize{";
-
-            for (int i = 9; i <= 10; i++)
-                fontsize[i] = "\\footnotesize{";
-
-            for (int i = 11; i <= 12; i++)
-                fontsize[i] = "\\small{";
-
-            for (int i = 13; i <= 14; i++)
-                fontsize[i] = "\\normalsize{";
-
-            for (int i = 15; i <= 17; i++)
-                fontsize[i] = "\\large{";
-
-            for (int i = 18; i <= 21; i++)
-                fontsize[i] = "\\Large{";
-
-            for (int i = 22; i <= 25; i++)
-                fontsize[i] = "\\LARGE{";
-
-            for (int i = 26; i <= 30; i++)
-                fontsize[i] = "\\huge{";
-            */
-
-            
-            for (int i = 1; i <= 6; i++)
-                fontsize[i] = "\\tiny{";
-
-            for (int i = 7; i <= 8; i++)
-                fontsize[i] = "\\footnotesize{";
-
-            for (int i = 9; i <= 10; i++)
-                fontsize[i] = "\\small{";
-
-            for (int i = 11; i <= 12; i++)
-                fontsize[i] = "\\normalsize";
-
-            for (int i = 13; i <= 14; i++)
-                fontsize[i] = "\\large{";
-
-            for (int i = 15; i <= 17; i++)
-                fontsize[i] = "\\Large{";
-
-            for (int i = 18; i <= 21; i++)
-                fontsize[i] = "\\LARGE{";
-
-            for (int i = 22; i <= 25; i++)
-                fontsize[i] = "\\LARGE{";
-
-            for (int i = 26; i <= 30; i++)
-                fontsize[i] = "\\huge{";
-            
-            
             var ttcl = xmdoc.Descendants(style + "style").Where(u => u.Attribute(style + "family").Value == "text").Select(
                 u =>
                 {
@@ -281,14 +243,38 @@ namespace fodt2tex
         }
         static string esctex(string s)
         {
-            return s.Replace("_", "\\_").Replace("%", "\\%");
+            return s.Replace("_", "\\_").Replace("%", "\\%").Replace("&", "\\&").Replace("#", "\\#");
         }
+
+        static int nimage = 0;
         static string GetText(XElement tcel)
         {
             if (tcel.Name == draw + "frame")
             {
                 //Это картинка
-                return "";
+                if (tcel.Attribute(svg + "width") == null)
+                    return "";
+                try
+                {
+                    string w = tcel.Attribute(svg + "width").Value;
+                    string h = tcel.Attribute(svg + "height").Value;
+                    string imgname = $"img{nimage}_{fname}.png";
+                    string fullname = Path.Combine(pth, imgname);
+                    string b64 = tcel.Element(draw + "image").Element(office + "binary-data").Value;
+                    byte[] imageBytes = Convert.FromBase64String(b64);
+                    using (var ms = new MemoryStream(imageBytes, 0, imageBytes.Length))
+                    {
+                        Image image = Image.FromStream(ms, true);
+                        image.Save(fullname, ImageFormat.Png);
+                        nimage++;
+                    }
+                    string res = $@"\includegraphics[width={w},height={h}]" + "{" + imgname + "}";
+                    return res;
+                }
+                catch
+                {
+                    return "";
+                }
             }
 
             if (tcel.Name == text + "line-break")
@@ -338,19 +324,22 @@ namespace fodt2tex
             }
         }
 
+        static string pth;
+        static string fname;
         static void Main(string[] args)
         {
             if (args.Length == 0)
                 return;
             string FullName = args[0];
-            string pth = Path.GetDirectoryName(FullName);
-            string fname = Path.GetFileNameWithoutExtension(FullName);
+            pth = Path.GetDirectoryName(FullName);
+            fname = Path.GetFileNameWithoutExtension(FullName);
             string fhead = Path.Combine(pth, "head.t");
+            string ffont = Path.Combine(pth, "font_size.t");
             string ftex = Path.Combine(pth, fname + ".tex");
             string texRes = File.ReadAllText(fhead);
             string mdoc = File.ReadAllText(FullName);
 
-
+            fontsize = File.ReadAllLines(ffont); //Размеры шрифтов
             XDocument xmdoc = XDocument.Parse(mdoc);
             initStyles(xmdoc);
 
