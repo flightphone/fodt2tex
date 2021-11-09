@@ -285,23 +285,29 @@ namespace fodt2tex
 
             string start = "";  //Подгружаем из таблицы стилей
             string end = "";
+            if (tcel.Name == text + "p")
+            {
+                start = "\\par ";
+            }
             if (tcel.Attribute(text + "style-name") != null)
             {
                 string tag = tcel.Attribute(text + "style-name").Value;
                 if (styles.ContainsKey(tag))
                 {
                     KeyValuePair<string, string> se = styles[tag];
-                    start = se.Key;
+                    start = start += se.Key;
                     end = se.Value;
                 }
             }
 
             if (!tcel.HasElements)
             {
+                /*
                 if (tcel.Name == text + "p")
                 {
                     start = "\\par " + start;
                 }
+                */
                 return start + esctex(tcel.Value) + end;
             }
             else
