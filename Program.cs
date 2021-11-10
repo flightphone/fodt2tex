@@ -307,6 +307,8 @@ namespace fodt2tex
 
             if (!tcel.HasElements)
             {
+                if (string.IsNullOrEmpty(tcel.Value))
+                    tcel.Value = " ";
                 return start + esctex(tcel.Value) + end;
             }
             else
