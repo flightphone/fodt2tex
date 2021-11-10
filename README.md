@@ -1,4 +1,10 @@
-# docker-compose-example
-copy head.t  C:\Data\  <\br>
-copy font_size.t  C:\Data\ <\br>
+# fodt2tex
+<pre>
+copy head.t  C:\Data\  
+copy font_size.t  C:\Data\ 
 dotnet fodt2tex.dll C:\Data\MyFileWithTables.fodt 
+
+Parametr scale in file *.fodt:
+<table:table table:name="Table1" table:style-name="Table2" scale="1.0">
+
+</pre>
