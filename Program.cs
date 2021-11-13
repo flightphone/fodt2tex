@@ -252,6 +252,54 @@ namespace fodt2tex
         }
 
         static int nimage = 0;
+
+
+        static string Gettt(XElement tcel)
+        //только текст
+        {
+            if (tcel.Name == draw + "frame")
+            {
+                    return "";
+                
+            }
+
+            if (tcel.Name == text + "line-break")
+            {
+                //новая строка
+                return "\t";
+            }
+
+            string start = "";  //Подгружаем из таблицы стилей
+            
+            if (tcel.Name == text + "p")
+            {
+                start = "\t ";
+            }
+            
+            if (!tcel.HasElements)
+            {
+                if (string.IsNullOrEmpty(tcel.Value))
+                    tcel.Value = " ";
+                return start + tcel.Value;
+            }
+            else
+            {
+                string tts = start;
+                foreach (XNode el in tcel.Nodes())
+                {
+                    if (el is XElement)
+                        tts += Gettt((XElement)el);
+                    else
+                    if (el.NodeType == XmlNodeType.Text)
+                    {
+                        tts += el.ToString();
+                    }
+
+                }
+                return tts;
+            }
+        }
+
         static string GetText(XElement tcel)
         {
             if (tcel.Name == draw + "frame")
@@ -343,7 +391,9 @@ namespace fodt2tex
             string fhead = Path.Combine(pth, "head.t");
             string ffont = Path.Combine(pth, "font_size.t");
             string ftex = Path.Combine(pth, fname + ".tex");
+            string ftxt = Path.Combine(pth, fname + ".txt"); //Паралелльно запишем тольео текст
             string texRes = File.ReadAllText(fhead);
+            string txtRes = "";
             string mdoc = File.ReadAllText(FullName);
 
             fontsize = File.ReadAllLines(ffont); //Размеры шрифтов
@@ -380,6 +430,8 @@ namespace fodt2tex
             foreach (XElement tab in tables)
             {
                 //нашли таблицу
+                txtRes += "\n\n\n";
+
                 texRes += "\n\\begin{table}[H]\n\\begin{adjustbox}{max width=\\textwidth}\n\\begin{tabular}{";
                 List<string> licol = new List<string>();
                 List<decimal> wdcol = new List<decimal>();
@@ -423,6 +475,7 @@ namespace fodt2tex
                 foreach (XElement trow in tab.Elements(table + "table-row"))
                 {
                     string texrow = "";
+                    string ttrow = ""; //только текст
                     int cpos = 0;
                     int ipos = 0;
                     char[] up_arr = up_line.ToCharArray();
@@ -488,11 +541,19 @@ namespace fodt2tex
                         string ttcel = GetText(tcel);
                         texcel += "{" + ttcel + "}" + endcell;
 
+                        
+
                         if (string.IsNullOrEmpty(texrow))
                             texrow = texcel;
                         else
                             texrow += " & " + texcel;
                         //Линии
+
+                        string tt = Gettt(tcel);
+                        if (string.IsNullOrEmpty(ttrow))
+                            ttrow = tt;
+                        else
+                            ttrow += tt + "\t";
 
                         if (b.top)
                         {
@@ -577,6 +638,8 @@ namespace fodt2tex
                     up_line = dn_line;
                     dn_line = sp_line;
                     irow++;
+
+                    txtRes += ttrow + "\n";
                 }
                 //Добавляем последнюю черточку
                 if (up_line != sp_line)
@@ -591,6 +654,7 @@ namespace fodt2tex
 
             texRes += "\n\\end{document}";
             File.WriteAllText(ftex, texRes);
+            File.WriteAllText(ftxt, txtRes);
 
             ProcessStartInfo pi = new ProcessStartInfo();
             pi.WorkingDirectory = pth;
