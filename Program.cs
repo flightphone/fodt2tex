@@ -259,8 +259,7 @@ namespace fodt2tex
         {
             if (tcel.Name == draw + "frame")
             {
-                    return "";
-                
+                return "";
             }
 
             if (tcel.Name == text + "line-break")
@@ -270,17 +269,17 @@ namespace fodt2tex
             }
 
             string start = "";  //Подгружаем из таблицы стилей
-            
+            string end = "";
             if (tcel.Name == text + "p")
             {
-                start = "\t ";
+                end = "\t";
             }
-            
+
             if (!tcel.HasElements)
             {
                 if (string.IsNullOrEmpty(tcel.Value))
                     tcel.Value = " ";
-                return start + tcel.Value;
+                return start + tcel.Value + end;
             }
             else
             {
@@ -296,6 +295,7 @@ namespace fodt2tex
                     }
 
                 }
+                tts += end;
                 return tts;
             }
         }
@@ -541,7 +541,7 @@ namespace fodt2tex
                         string ttcel = GetText(tcel);
                         texcel += "{" + ttcel + "}" + endcell;
 
-                        
+
 
                         if (string.IsNullOrEmpty(texrow))
                             texrow = texcel;
@@ -551,9 +551,17 @@ namespace fodt2tex
 
                         string tt = Gettt(tcel);
                         if (string.IsNullOrEmpty(ttrow))
+                        {
+                            if (tt[tt.Length - 1] != '\t')
+                                tt = tt + "\t";
                             ttrow = tt;
+                        }
                         else
-                            ttrow += tt + "\t";
+                        {
+                            if (tt[tt.Length - 1] != '\t')
+                                tt = tt + "\t";
+                            ttrow += tt;
+                        }
 
                         if (b.top)
                         {
