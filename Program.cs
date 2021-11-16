@@ -248,7 +248,7 @@ namespace fodt2tex
         }
         static string esctex(string s)
         {
-            return s.Replace("_", "\\_").Replace("%", "\\%").Replace("&", "\\&").Replace("#", "\\#");
+            return s.Replace("\\", "\\\\").Replace("_", "\\_").Replace("%", "\\%").Replace("&", "\\&").Replace("#", "\\#");
         }
 
         static int nimage = 0;
@@ -311,7 +311,7 @@ namespace fodt2tex
                 {
                     string w = tcel.Attribute(svg + "width").Value;
                     string h = tcel.Attribute(svg + "height").Value;
-                    string imgname = $"img{nimage}_{fname}.png";
+                    string imgname = $"{fname}_img{nimage}.png";
                     string fullname = Path.Combine(pth, imgname);
                     string b64 = tcel.Element(draw + "image").Element(office + "binary-data").Value;
                     byte[] imageBytes = Convert.FromBase64String(b64);
