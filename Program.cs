@@ -248,7 +248,17 @@ namespace fodt2tex
         }
         static string esctex(string s)
         {
-            return s.Replace("\\", "\\\\").Replace("_", "\\_").Replace("%", "\\%").Replace("&", "\\&").Replace("#", "\\#");
+            return s
+            .Replace("\\", "")
+            .Replace("^", "")
+            .Replace("~", "-")
+            .Replace("_", "\\_")
+            .Replace("%", "\\%")
+            .Replace("&", "\\&")
+            .Replace("$", "\\$")
+            .Replace("{", "\\{")
+            .Replace("}", "\\}")
+            .Replace("#", "\\#");
         }
 
         static int nimage = 0;
