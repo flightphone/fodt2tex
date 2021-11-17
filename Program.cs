@@ -248,17 +248,19 @@ namespace fodt2tex
         }
         static string esctex(string s)
         {
+            string md = "DE5BA24A-BCFC-4D5D-B92E-E283F9D39ABE";
             return s
-            .Replace("\\", "")
-            .Replace("^", "")
-            .Replace("~", "-")
+            .Replace("\\", $"{md}\\backslash{md}")
+            .Replace("~", $"{md}\\sim{md}")
             .Replace("_", "\\_")
             .Replace("%", "\\%")
             .Replace("&", "\\&")
             .Replace("$", "\\$")
             .Replace("{", "\\{")
             .Replace("}", "\\}")
-            .Replace("#", "\\#");
+            .Replace("#", "\\#")
+            .Replace("^", md + "\\hat{}" + md)
+            .Replace(md, "$");
         }
 
         static int nimage = 0;
