@@ -12,7 +12,6 @@
 \setmonofont{DejaVu Sans Mono}
 
 \usepackage{hhline}
-\usepackage[utf8]{inputenc}
 \usepackage{multicol}
 \usepackage{multirow}
 \setlength\parindent{0pt}
