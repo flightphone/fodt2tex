@@ -460,8 +460,8 @@ namespace fodt2tex
                     string tag = tcol.Attribute(table + "style-name").Value;
                     string vtag = columns[tag];
                     vtag = vtag.Replace("cm", "").Replace(".", ",");
-                    decimal wd = decimal.Parse(vtag) / scale;
-                    string wtag = "p{" + wd.ToString().Replace(",", ".") + "}";
+                    decimal wd = Decimal.Round(decimal.Parse(vtag) / scale, 2);
+                    string wtag = "p{" + wd.ToString().Replace(",", ".") + "cm}";
                     string sn = (tcol.Attribute(table + "number-columns-repeated") ?? repe).Value;
                     int n = int.Parse(sn);
                     for (int i = 0; i < n; i++)
@@ -482,7 +482,9 @@ namespace fodt2tex
                 string up_line = new string('~', ncol);
                 string dn_line = new string('~', ncol);
                 string sp_line = new string('~', ncol);
-                Dictionary<KeyValuePair<int, int>, Border> sprow = new Dictionary<KeyValuePair<int, int>, Border>();
+                Dictionary<KeyValuePair<int, int>, Border> sprow = new Dictionary<KeyValuePair<int, int>, Border>();  //Границы объединенных ячеек
+                Dictionary<KeyValuePair<int, int>, string> spanrow = new Dictionary<KeyValuePair<int, int>, string>();  //объединение по горизоньали для rowspan
+
                 int irow = 0;
                 foreach (XElement trow in tab.Elements(table + "table-row"))
                 {
@@ -506,6 +508,8 @@ namespace fodt2tex
                             break;
                         string texcel = "\n\\multicolumn{";
                         Border b = new Border();
+                        string span = (tcel.Attribute(table + "number-columns-spanned") ?? repe).Value;
+
                         if (tcel.Attribute(table + "style-name") != null)
                         {
                             string tag = tcel.Attribute(table + "style-name").Value;
@@ -517,8 +521,11 @@ namespace fodt2tex
                             KeyValuePair<int, int> ftag = KeyValuePair.Create(irow, ipos);
                             if (sprow.ContainsKey(ftag))
                                 b = sprow[ftag];
+
+                            if (spanrow.ContainsKey(ftag))
+                                span = spanrow[ftag];
                         }
-                        string span = (tcel.Attribute(table + "number-columns-spanned") ?? repe).Value;
+
 
                         texcel += span + "}";
 
@@ -602,6 +609,25 @@ namespace fodt2tex
                             Border bl = new Border();
                             Border br = new Border();
                             Border bm = new Border();
+                            bl.left = b.left;
+                            bl.right = b.right;
+                            bl.bottom = false;
+                            bl.top = false;
+
+                            for (int i = irow + 1; i < irow + rwspan; i++)
+                            {
+                                KeyValuePair<int, int> tg = KeyValuePair.Create(i, ipos);
+                                spanrow.Add(tg, span);
+                                if (i == irow + rwspan - 1)
+                                        bl.bottom = b.bottom;
+                                sprow.Add(tg, new Border(bl));
+                            }
+
+                            //Все немного не так, оказывается
+                            /*
+                            Border bl = new Border();
+                            Border br = new Border();
+                            Border bm = new Border();
                             bm.bottom = b.bottom;
                             bl.left = b.left;
                             br.right = b.right;
@@ -642,6 +668,7 @@ namespace fodt2tex
                                     sprow.Add(tg, new Border(bm));
                                 }
                             }
+                            */
                         }
 
 
