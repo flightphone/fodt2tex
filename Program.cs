@@ -156,23 +156,33 @@ namespace fodt2tex
                     String end = "";
                     XElement p = u.Element(style + "paragraph-properties");
                     if (p != null)
+                    {
+                        string vtex = "{";
                         if (p.Attribute(fo + "text-align") != null)
                         {
                             string v = p.Attribute(fo + "text-align").Value;
-                            string vtex = "{";
                             if (v == "start")
-                                vtex = "\\raggedright{";
-
+                                vtex = "\\raggedright {";    
                             if (v == "end")
-                                vtex = "\\raggedleft{";
-
+                                vtex = "\\raggedleft {";    
                             if (v == "center")
-                                vtex = "\\centering{";
+                                vtex = "\\centering {";    
 
                             start += vtex;
-                            end += "}";
+                            end += "}";    
                         }
+                        /*
+                        else
+                        {
+                            vtex = "\\raggedright ";// + "{";    
+                            start += vtex;
+                            //end += "}";
+                        }
+                        */ 
+                               
 
+                            
+                    }
 
                     XElement t = u.Element(style + "text-properties");
                     if (t != null)
@@ -312,7 +322,7 @@ namespace fodt2tex
             }
         }
 
-        static string GetText(XElement tcel)
+        static string GetText(XElement tcel, bool multi=false)
         {
             if (tcel.Name == draw + "frame")
             {
@@ -360,8 +370,19 @@ namespace fodt2tex
                 if (styles.ContainsKey(tag))
                 {
                     KeyValuePair<string, string> se = styles[tag];
-                    start = start += se.Key;
-                    end = se.Value;
+                    string st = se.Key;                            
+                    string ed = se.Value;
+                    /*    
+                    if (multi && tcel.Name == text + "p")
+                    {
+                        st = st.Replace("\\raggedleft ", "\\raggedleft {")
+                                .Replace("\\raggedright ", "\\raggedright {")
+                                 .Replace("\\centering ", "\\centering {");       
+                        ed += "}";
+                    }
+                    */
+                    start += st;
+                    end = ed;
                 }
             }
 
@@ -377,7 +398,7 @@ namespace fodt2tex
                 foreach (XNode el in tcel.Nodes())
                 {
                     if (el is XElement)
-                        tts += GetText((XElement)el);
+                        tts += GetText((XElement)el, multi);
                     else
                     if (el.NodeType == XmlNodeType.Text)
                     {
@@ -437,10 +458,22 @@ namespace fodt2tex
             texRes += "\n\\begin{document}";
 
 
-            var tables = xmdoc.Root.Descendants(table + "table").Select(u => u);
             XAttribute repe = new XAttribute("number-columns-repeated", "1");
-            foreach (XElement tab in tables)
+            XElement tables = xmdoc.Root.Descendants(office + "text").Select(u => u ).First();
+            
+            //var tables = xmdoc.Root.Descendants(table + "table").Select(u => u);
+            
+            foreach (XElement tab in tables.Elements())
             {
+                
+                if (tab.Name != table + "table")
+                {
+                   //Это не таблица, добавляем в поток текст    
+                   texRes += "\n"  + "\\raggedright " + GetText(tab, false); 
+                   continue; 
+                }
+                
+                
                 //нашли таблицу
                 txtRes += "\n\n\n";
 
@@ -557,7 +590,17 @@ namespace fodt2tex
 
 
                         //Здесь запишем текст
-                        string ttcel = GetText(tcel);
+
+                        //Зависит от rowspan
+                        /*
+                        int rwspan_for_text = 0;
+                        if (tcel.Attribute(table + "number-rows-spanned") != null)
+                        {
+                            rwspan_for_text = int.Parse(tcel.Attribute(table + "number-rows-spanned").Value);
+                        } 
+                        string ttcel = GetText(tcel, ((nlen > 1) && (rwspan_for_text > 1)));
+                        */
+                        string ttcel = GetText(tcel, false);
                         texcel += "{" + ttcel + "}" + endcell;
 
 
