@@ -162,14 +162,14 @@ namespace fodt2tex
                         {
                             string v = p.Attribute(fo + "text-align").Value;
                             if (v == "start")
-                                vtex = "\\raggedright {";    
+                                vtex = "\\raggedright {";
                             if (v == "end")
-                                vtex = "\\raggedleft {";    
+                                vtex = "\\raggedleft {";
                             if (v == "center")
-                                vtex = "\\centering {";    
+                                vtex = "\\centering {";
 
                             start += vtex;
-                            end += "}";    
+                            end += "}";
                         }
                         /*
                         else
@@ -178,10 +178,10 @@ namespace fodt2tex
                             start += vtex;
                             //end += "}";
                         }
-                        */ 
-                               
+                        */
 
-                            
+
+
                     }
 
                     XElement t = u.Element(style + "text-properties");
@@ -230,19 +230,22 @@ namespace fodt2tex
                     XElement p = u.Element(style + "table-cell-properties");
                     XAttribute d = new XAttribute("border", "none");
                     Border b = new Border();
-                    if (p.Attribute(fo + "border") == null)
+                    if (p != null)
                     {
-                        b.left = (p.Attribute(fo + "border-left") ?? d).Value != "none";
-                        b.right = (p.Attribute(fo + "border-right") ?? d).Value != "none";
-                        b.bottom = (p.Attribute(fo + "border-bottom") ?? d).Value != "none";
-                        b.top = (p.Attribute(fo + "border-top") ?? d).Value != "none";
-                    }
-                    else
-                    {
-                        b.left = (p.Attribute(fo + "border").Value != "none");
-                        b.right = (p.Attribute(fo + "border").Value != "none");
-                        b.bottom = (p.Attribute(fo + "border").Value != "none");
-                        b.top = (p.Attribute(fo + "border").Value != "none");
+                        if (p.Attribute(fo + "border") == null)
+                        {
+                            b.left = (p.Attribute(fo + "border-left") ?? d).Value != "none";
+                            b.right = (p.Attribute(fo + "border-right") ?? d).Value != "none";
+                            b.bottom = (p.Attribute(fo + "border-bottom") ?? d).Value != "none";
+                            b.top = (p.Attribute(fo + "border-top") ?? d).Value != "none";
+                        }
+                        else
+                        {
+                            b.left = (p.Attribute(fo + "border").Value != "none");
+                            b.right = (p.Attribute(fo + "border").Value != "none");
+                            b.bottom = (p.Attribute(fo + "border").Value != "none");
+                            b.top = (p.Attribute(fo + "border").Value != "none");
+                        }
                     }
                     KeyValuePair<string, Border> r = KeyValuePair.Create(tag, b);
                     return r;
@@ -322,7 +325,7 @@ namespace fodt2tex
             }
         }
 
-        static string GetText(XElement tcel, bool multi=false)
+        static string GetText(XElement tcel, bool multi = false)
         {
             if (tcel.Name == draw + "frame")
             {
@@ -370,7 +373,7 @@ namespace fodt2tex
                 if (styles.ContainsKey(tag))
                 {
                     KeyValuePair<string, string> se = styles[tag];
-                    string st = se.Key;                            
+                    string st = se.Key;
                     string ed = se.Value;
                     /*    
                     if (multi && tcel.Name == text + "p")
@@ -459,25 +462,39 @@ namespace fodt2tex
 
 
             XAttribute repe = new XAttribute("number-columns-repeated", "1");
-            XElement tables = xmdoc.Root.Descendants(office + "text").Select(u => u ).First();
-            
+            var tbs = xmdoc.Root.Descendants(office + "text").Select(u => u);
+            //if (tbs.Count() == 0) //Электронная таблица
+            //    tbs = xmdoc.Root.Descendants(office + "spreadsheet").Select(u => u);
+
+            if (tbs.Count() == 0)
+            {
+                Console.WriteLine("unknown");
+                return;
+            }
+
+            XElement tables = tbs.First();
             //var tables = xmdoc.Root.Descendants(table + "table").Select(u => u);
-            
+
             foreach (XElement tab in tables.Elements())
             {
-                
+
                 if (tab.Name != table + "table")
                 {
-                   //Это не таблица, добавляем в поток текст    
-                   texRes += "\n"  + "\\raggedright " + GetText(tab, false); 
-                   continue; 
+                    //Это не таблица, добавляем в поток текст    
+                    texRes += "\n" + "\\raggedright " + GetText(tab, false);
+                    continue;
                 }
-                
-                
+
+
                 //нашли таблицу
                 txtRes += "\n\n\n";
+                string notadj = "";
+                if (tab.Attribute("adjust") != null)
+                {
+                    notadj = "%";
+                }
 
-                texRes += "\n\\begin{table}[H]\n\\begin{adjustbox}{max width=\\textwidth}\n\\begin{tabular}{";
+                texRes += "\n\\begin{table}[H]\n" + notadj + "\\begin{adjustbox}{max width=\\textwidth}\n\\begin{tabular}{";
                 List<string> licol = new List<string>();
                 List<decimal> wdcol = new List<decimal>();
                 //Список колонок
@@ -497,6 +514,9 @@ namespace fodt2tex
                     string wtag = "p{" + wd.ToString().Replace(",", ".") + "cm}";
                     string sn = (tcol.Attribute(table + "number-columns-repeated") ?? repe).Value;
                     int n = int.Parse(sn);
+                    if ((wdcol.Count + n) == 1024)
+                        n = 1;
+
                     for (int i = 0; i < n; i++)
                     {
                         licol.Add(wtag);
@@ -539,6 +559,7 @@ namespace fodt2tex
                         }
                         if (cpos >= ncol)
                             break;
+
                         string texcel = "\n\\multicolumn{";
                         Border b = new Border();
                         string span = (tcel.Attribute(table + "number-columns-spanned") ?? repe).Value;
@@ -590,7 +611,6 @@ namespace fodt2tex
 
 
                         //Здесь запишем текст
-
                         //Зависит от rowspan
                         /*
                         int rwspan_for_text = 0;
@@ -662,59 +682,11 @@ namespace fodt2tex
                                 KeyValuePair<int, int> tg = KeyValuePair.Create(i, ipos);
                                 spanrow.Add(tg, span);
                                 if (i == irow + rwspan - 1)
-                                        bl.bottom = b.bottom;
+                                    bl.bottom = b.bottom;
                                 sprow.Add(tg, new Border(bl));
                             }
 
-                            //Все немного не так, оказывается
-                            /*
-                            Border bl = new Border();
-                            Border br = new Border();
-                            Border bm = new Border();
-                            bm.bottom = b.bottom;
-                            bl.left = b.left;
-                            br.right = b.right;
-                            bl.bottom = false;
-                            bl.top = false;
-
-                            if (nlen == 1)
-                            {
-                                bl.right = b.right;
-                                for (int i = irow + 1; i < irow + rwspan; i++)
-                                {
-                                    if (i == irow + rwspan - 1)
-                                        bl.bottom = b.bottom;
-                                    KeyValuePair<int, int> tg = KeyValuePair.Create(i, ipos);
-                                    sprow.Add(tg, new Border(bl));
-                                }
-                            }
-                            else
-                            {
-                                for (int i = irow + 1; i < irow + rwspan; i++)
-                                {
-
-
-                                    if (i == irow + rwspan - 1)
-                                    {
-                                        bl.bottom = b.bottom;
-                                        br.bottom = b.bottom;
-                                    }
-                                    KeyValuePair<int, int> tg1 = KeyValuePair.Create(i, ipos);
-                                    sprow.Add(tg1, new Border(bl));
-                                    KeyValuePair<int, int> tg2 = KeyValuePair.Create(i, ipos + nlen - 1);
-                                    sprow.Add(tg2, new Border(br));
-                                }
-                                //Нижняя граница
-                                for (int i = ipos + 1; i < ipos + nlen - 1; i++)
-                                {
-                                    KeyValuePair<int, int> tg = KeyValuePair.Create(irow + rwspan - 1, i);
-                                    sprow.Add(tg, new Border(bm));
-                                }
-                            }
-                            */
                         }
-
-
                         cpos += nlen;
                         ipos++;
                     }
@@ -735,10 +707,7 @@ namespace fodt2tex
                 if (up_line != sp_line)
                     texRes += "\n\\hhline{" + up_line + "}";
 
-
-
-                texRes += "\n\\end{tabular}\n\\end{adjustbox}\n\\end{table}";
-                //break;
+                texRes += "\n\\end{tabular}\n" + notadj + "\\end{adjustbox}\n\\end{table}";
             }
 
 
@@ -748,7 +717,7 @@ namespace fodt2tex
 
             ProcessStartInfo pi = new ProcessStartInfo();
             pi.WorkingDirectory = pth;
-            pi.FileName = "xelatex";
+            pi.FileName = "xelatex"; 
             pi.Arguments = $"-interaction nonstopmode {ftex}";
             Process.Start(pi).WaitForExit();
 
