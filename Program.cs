@@ -719,7 +719,7 @@ namespace fodt2tex
             pi.WorkingDirectory = pth;
             pi.FileName = "xelatex"; 
             pi.Arguments = $"-interaction nonstopmode {ftex}";
-            Process.Start(pi).WaitForExit();
+            //Process.Start(pi).WaitForExit();
 
             Console.WriteLine("successfully");
 
